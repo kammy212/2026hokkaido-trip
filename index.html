@@ -97,7 +97,6 @@
             justify-content: space-between;
             align-items: center;
         }
-        /* 側邊圓孔效果 */
         .pass-body::before, .pass-body::after {
             content: '';
             position: absolute;
@@ -164,7 +163,7 @@
                             </div>
                         </div>
 
-                        <!-- 航班登機證卡片 -->
+                        <!-- 航班登機證卡片 (更新飛機圖案位置) -->
                         <div v-if="item.type === 'boarding-pass'" class="boarding-pass mb-4">
                             <div class="pass-header">
                                 <div class="flex items-center gap-2">
@@ -180,11 +179,13 @@
                                     <span class="text-xl font-black text-deep-sea-blue mt-5">{{ item.startTime }}</span>
                                 </div>
                                 <div class="flex flex-col items-center flex-1 px-4">
-                                    <span class="text-[9px] text-slate-400 font-bold mb-1 italic">{{ item.duration }}</span>
-                                    <div class="w-full h-[1px] bg-slate-200 relative">
-                                        <i class="fa-solid fa-plane absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-accent-yellow bg-white px-2 text-sm" :class="item.originCode === 'CTS' ? 'rotate-[-135deg]' : 'rotate-45'"></i>
+                                    <!-- 飛機圖案放在時間上方 -->
+                                    <i class="fa-solid fa-plane text-accent-yellow text-lg mb-1" :class="item.originCode === 'CTS' ? 'rotate-[-135deg]' : 'rotate-45'"></i>
+                                    <span class="text-[9px] text-slate-400 font-bold italic">{{ item.duration }}</span>
+                                    <div class="w-full h-[1px] bg-slate-200 mt-2 relative">
+                                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-slate-200 rounded-full"></div>
                                     </div>
-                                    <span class="text-[8px] text-slate-300 mt-2 uppercase tracking-[0.2em]">Non-stop</span>
+                                    <span class="text-[8px] text-slate-300 mt-1 uppercase tracking-[0.2em]">Non-stop</span>
                                 </div>
                                 <div class="flex flex-col items-end">
                                     <span class="text-4xl font-black text-deep-sea-blue mono-font leading-none">{{ item.destCode }}</span>
@@ -221,7 +222,7 @@
                 </div>
             </section>
 
-            <!-- 資訊分頁 (內容固定) -->
+            <!-- 資訊分頁 -->
             <section v-if="currentTab === 'info'" class="space-y-6">
                 <!-- 匯率轉換 -->
                 <div class="app-card p-6">
@@ -329,10 +330,6 @@
                     <h2 class="text-4xl font-black mono-font">¥ {{ (totalExpensesJPY + 94130).toLocaleString() }}</h2>
                 </div>
                 <div class="space-y-3">
-                    <div class="flex justify-between items-center px-4 mb-2">
-                        <span class="text-[10px] font-black text-deep-sea-blue uppercase">Expense History</span>
-                        <span class="text-[10px] font-black text-slate-400">Total Items: {{ expenses.length }}</span>
-                    </div>
                     <div v-for="exp in expenses" :key="exp.id" class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm text-slate-700">
                         <div class="flex items-center gap-4">
                             <div class="w-10 h-10 bg-light-snow-blue rounded-xl flex items-center justify-center text-deep-sea-blue shadow-inner"><i class="fa-solid fa-yen-sign"></i></div>
@@ -347,7 +344,6 @@
             </section>
         </main>
 
-        <!-- 底部裝飾 -->
         <div class="h-24"></div>
     </div>
 
@@ -401,30 +397,22 @@
                 ];
 
                 const itineraryData = [
-                    // Day 1
                     [{ id: 101, type: 'boarding-pass', flightNum: 'HB880', duration: '4h 50m', originCode: 'HKG', originName: 'Hong Kong', startTime: '09:15', destCode: 'CTS', destName: 'New Chitose', arrivalTime: '15:05' }, { category: '租車', name: 'Times 取車 (新千歲機場)', startTime: '15:30', note: '預約編號: 24266155' }, { category: '住宿', name: 'Dormy Inn 帶廣' }],
-                    // Day 2
-                    [{ category: '景點', name: '六花亭 帶廣本店' }, { category: '景點', name: '星野度假村 Tomamu', note: '森林餐廳 Nininupuri 晚餐' }, { category: '住宿', name: '星野 The Tower' }],
-                    // Day 3
-                    [{ category: '景點', name: '雲海平台 (Unkai Terrace)', startTime: '05:00' }, { category: '景點', name: '美瑛青池' }],
-                    // Day 4
-                    [{ category: '美食', name: '二條市場 大磯', startTime: '10:00' }, { category: '住宿', name: 'KOKO HOTEL 札幌' }],
-                    // Day 5
-                    [{ category: '景點', name: '洞爺湖展望台' }, { category: '住宿', name: '乃の風リゾート' }],
-                    // Day 6
-                    [{ category: '景點', name: '登別地獄谷' }, { category: '住宿', name: 'Dormy Inn 苫小牧' }],
-                    // Day 7
-                    [{ category: '景點', name: '支笏湖划船體驗' }, { category: '住宿', name: '水の謌' }],
-                    // Day 8
-                    [{ category: '景點', name: '新千歲機場 國內線購物', note: '機場必逛：Royce 巧克力工廠、卡樂比現炸薯條' }, { id: 801, type: 'boarding-pass', flightNum: 'HB881', duration: '5h 30m', originCode: 'CTS', originName: 'New Chitose', startTime: '16:05', destCode: 'HKG', destName: 'Hong Kong', arrivalTime: '20:35' }]
+                    [{ category: '美食', name: '帶廣 豚丼', note: '帶廣名物' }, { category: '景點', name: '星野度假村 Tomamu' }, { category: '住宿', name: '星野 The Tower' }],
+                    [{ category: '景點', name: '雲海平台', startTime: '05:00' }, { category: '美食', name: '森之餐廳 Nininupuri' }],
+                    [{ category: '住宿', name: 'KOKO HOTEL 札幌' }],
+                    [{ category: '住宿', name: '乃の風リゾート' }],
+                    [{ category: '住宿', name: 'Dormy Inn 苫小牧' }],
+                    [{ category: '住宿', name: '水的謌' }],
+                    [{ category: '景點', name: '新千歲機場 國內線', note: '最後衝刺買伴手禮' }, { id: 801, type: 'boarding-pass', flightNum: 'HB881', duration: '5h 30m', originCode: 'CTS', originName: 'New Chitose', startTime: '16:05', destCode: 'HKG', destName: 'Hong Kong', arrivalTime: '20:35' }]
                 ];
 
                 const expenses = ref([
-                    { id: 1, name: '餐飲預算', val: 50000, date: '06/16' },
-                    { id: 2, name: '油費預計', val: 15000, date: '06/23' }
+                    { id: 1, name: '餐飲預定', val: 50000, date: '06/16' },
+                    { id: 2, name: '購物金', val: 30000, date: '06/17' }
                 ]);
 
-                const shoppingItems = ref([{ id: 1, name: '白色戀人' }, { id: 2, name: '六花亭 奶油餅乾' }]);
+                const shoppingItems = ref([{ id: 1, name: '六花亭' }, { id: 2, name: '柳月' }]);
 
                 const currentItinerary = computed(() => itineraryData[selectedDayIndex.value]);
                 const totalExpensesJPY = computed(() => expenses.value.reduce((sum, item) => sum + item.val, 0));
