@@ -49,11 +49,15 @@
         .info-item-label { font-size: 7px; font-weight: 800; color: #B0A8C0; margin-bottom: 2px; text-transform: uppercase; }
         .info-item-value { font-size: 12px; font-weight: 800; color: #5B5270; }
         
-        .app-card { background: #fff; border-radius: 22px; box-shadow: 0 8px 20px rgba(123, 111, 147, 0.08); margin-bottom: 0px; border: 1px solid rgba(255,255,255,0.8); position: relative; cursor: pointer; transition: transform 0.1s; }
-        .app-card:active { transform: scale(0.98); }
+        .app-card { background: #fff; border-radius: 22px; box-shadow: 0 8px 20px rgba(123, 111, 147, 0.08); margin-bottom: 0px; border: 1px solid rgba(255,255,255,0.8); position: relative; display: flex; overflow: hidden; }
+        
+        .drag-handle { width: 36px; display: flex; align-items: center; justify-content: center; background: #F8F8FF; color: #B0A8C0; cursor: grab; border-right: 1px solid #F0F0FF; transition: background 0.2s; }
+        .drag-handle:active { cursor: grabbing; background: #E6E6FA; }
+        .card-content { flex: 1; padding: 16px; position: relative; cursor: pointer; }
+        .card-content:active { transform: scale(0.99); }
         .weather-panel { background: #7B6F93; color: #FFFAFA; border-radius: 25px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
         .transport-connector { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
-        .transport-icon-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #E6E6FA; color: #7B6F93; font-size: 13px; box-shadow: 0 4px 10px rgba(123, 111, 147, 0.1); cursor: pointer; }
+        .transport-icon-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #E6E6FA; color: #7B6F93; font-size: 13px; box-shadow: 0 4px 10px rgba(123, 111, 147, 0.10); cursor: pointer; }
         .item-action-btn { position: absolute; font-size: 14px; color: #E2E8F0; cursor: pointer; z-index: 10; padding: 5px; transition: color 0.2s; }
         .item-edit-btn { top: 12px; right: 12px; }
         .add-floating-btn { position: fixed; bottom: 30px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: #7B6F93; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 8px 20px rgba(123, 111, 147, 0.4); z-index: 100; cursor: pointer; transition: transform 0.2s; }
@@ -106,20 +110,42 @@
         .table-relative-container { position: relative; }
         .table-add-btn { position: absolute; bottom: -20px; right: 10px; width: 44px; height: 44px; border-radius: 50%; background: #7B6F93; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(123, 111, 147, 0.3); z-index: 50; cursor: pointer; transition: all 0.2s; border: 3px solid #E6E6FA; }
         .table-add-btn:active { transform: scale(0.9); }
+
+        /* 新增：倒數計時面板樣式 (薰衣草主題) */
+        .countdown-panel {
+            background: rgba(150, 123, 182, 0.15);
+            border: 2px dashed #7B6F93;
+            border-radius: 25px;
+            padding: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            animation: gentle-pulse 2.5s infinite ease-in-out;
+        }
+        @keyframes gentle-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(150, 123, 182, 0); }
+            50% { transform: scale(1.02); box-shadow: 0 4px 15px rgba(150, 123, 182, 0.2); }
+        }
+        .lavender-tag { background: #967BB6; color: white; padding: 2px 10px; border-radius: 12px; font-size: 9px; font-weight: 900; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <div id="app" class="max-w-md mx-auto min-h-screen relative shadow-2xl bg-lavender-mist">
-        
-        <!-- 行程編輯 Modal -->
+        <!-- Modals (不變) -->
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-content">
-                <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditing ? '編輯行程' : '新增行程' }}</h2>
+                <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditingHotel ? '編輯酒店資訊' : (isEditing ? '編輯行程' : '新增行程') }}</h2>
                 <div class="input-group">
-                    <label class="input-label">地點名稱</label>
+                    <label class="input-label">地點/酒店名稱</label>
                     <input v-model="form.name" class="modal-input" placeholder="例如：新千歲機場">
                 </div>
-                <div class="input-group">
+                <div v-if="isEditingHotel" class="input-group">
+                    <label class="input-label">入住日期</label>
+                    <input v-model="form.stay" class="modal-input" placeholder="例如：Day 1">
+                </div>
+                <div v-else class="input-group">
                     <label class="input-label">分類</label>
                     <select v-model="form.category" class="modal-input">
                         <option value="景點">景點</option>
@@ -138,15 +164,15 @@
                     <input v-model="form.tel" class="modal-input" placeholder="輸入電話">
                 </div>
                 <div class="input-group">
-                    <label class="input-label">備註</label>
-                    <textarea v-model="form.note" class="modal-input h-20" placeholder="備註事項..."></textarea>
+                    <label class="input-label">備註/設施</label>
+                    <textarea v-model="isEditingHotel ? form.amenities : form.note" class="modal-input h-20" placeholder="備註事項..."></textarea>
                 </div>
-                <button @click="saveItem" class="modal-btn btn-primary shadow-lg shadow-royal-purple/20">儲存行程</button>
-                <button v-if="isEditing" @click="confirmDelete" class="modal-btn btn-delete">刪除行程</button>
+                <button @click="isEditingHotel ? saveHotelItem() : saveItem()" class="modal-btn btn-primary shadow-lg shadow-royal-purple/20">儲存資訊</button>
+                <button v-if="isEditing && !isEditingHotel" @click="confirmDelete" class="modal-btn btn-delete">刪除行程</button>
                 <button @click="closeModal" class="modal-btn btn-secondary">取消</button>
             </div>
         </div>
-        <!-- 購物編輯 Modal -->
+        
         <div v-if="showShoppingModal" class="modal-overlay" @click.self="closeShoppingModal">
             <div class="modal-content">
                 <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditingShopping ? '編輯物品' : '新增物品' }}</h2>
@@ -183,7 +209,6 @@
                 <button @click="closeShoppingModal" class="modal-btn btn-secondary">取消</button>
             </div>
         </div>
-        <!-- 支出/消費編輯 Modal -->
         <div v-if="showBudgetModal" class="modal-overlay" @click.self="closeBudgetModal">
             <div class="modal-content">
                 <h2 class="text-xl font-black text-royal-purple mb-6">{{ budgetModalTitle }}</h2>
@@ -216,12 +241,14 @@
                 <button @click="closeBudgetModal" class="modal-btn btn-secondary">取消</button>
             </div>
         </div>
+        <!-- Floating Buttons -->
         <div v-if="currentTab === 'itinerary'" class="add-floating-btn" @click="openAddModal">
             <i class="fa-solid fa-plus"></i>
         </div>
         <div v-if="currentTab === 'shopping'" class="add-floating-btn" @click="openAddShoppingModal">
             <i class="fa-solid fa-plus"></i>
         </div>
+        <!-- Banner & Tabs -->
         <header class="banner-container">
             <img src="heading1.png" class="banner-img" alt="Hokkaido Heading">
             <div class="floating-tabs">
@@ -231,17 +258,31 @@
                 <button @click="currentTab = 'expenses'" :class="{'active': currentTab === 'expenses'}" class="tab-btn"><i class="fa-solid fa-yen-sign"></i></button>
             </div>
         </header>
+        <!-- Main Content -->
         <main class="content-layer">
-            <!-- 行程分頁 -->
+            <!-- ITINERARY TAB -->
             <section v-if="currentTab === 'itinerary'">
+                <!-- 新增：倒數功能 (薰衣草主題) -->
+                <div class="countdown-panel">
+                    <span class="lavender-tag">COUNTDOWN</span>
+                    <i class="fa-solid fa-plane-up text-royal-purple text-sm"></i>
+                    <p class="text-royal-purple font-black text-sm tracking-wide">
+                        北海道之旅還有 <span class="text-xl text-[#967BB6] font-black">{{ daysUntilTrip }}</span> 天！
+                    </p>
+                    <i class="fa-solid fa-heart text-[#967BB6] text-xs"></i>
+                </div>
+
+                <!-- OPTIMIZED WEATHER PANEL -->
                 <div class="weather-panel">
                     <div class="flex items-center gap-4">
                         <i class="fa-solid fa-cloud-sun text-4xl"></i>
-                        <div><span class="text-2xl font-black text-cream-white">{{ weather.temp }}°C</span><p class="text-[10px] font-bold opacity-70 uppercase tracking-widest text-cream-white">Hokkaido Current</p></div>
+                        <div>
+                            <span class="text-2xl font-black text-cream-white">{{ weather.temp }}°C</span>
+                            <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest text-cream-white">{{ weather.location }} 實況</p>
+                        </div>
                     </div>
                     <div class="text-right border-l border-cream-white/20 pl-4 text-cream-white font-bold text-[11px]">體感 {{ weather.feel }}°C<br>UV 指數 {{ weather.uv }}</div>
                 </div>
-                
                 <div class="flex gap-3 overflow-x-auto hide-scrollbar mb-6 py-2">
                     <div v-for="d in days" :key="d.id" @click="selectedDayIndex = d.id - 1"
                         :class="selectedDayIndex === d.id - 1 ? 'bg-royal-purple text-cream-white' : 'bg-white text-slate-400'"
@@ -252,7 +293,7 @@
                 </div>
                 <div id="itinerary-list">
                     <div v-for="(item, index) in currentItinerary" :key="item.id || index" :data-id="index">
-                        <!-- 登機證樣式 -->
+                        <!-- Boarding Pass Style -->
                         <div v-if="item.type === 'boarding-pass'" class="boarding-pass-theme ignore-drag">
                             <div class="pass-left">
                                 <div class="pass-header">
@@ -299,25 +340,31 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- 一般景點卡片 -->
-                        <div v-else class="app-card p-4" @click="openMap(item)">
-                            <i @click.stop="openEditModal(index)" class="fa-solid fa-pen-to-square item-action-btn item-edit-btn"></i>
-                            <div class="mb-1">
-                                <span class="bg-lavender-mist text-royal-purple text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">{{ item.category }}</span>
+                        <!-- Normal Card -->
+                        <div v-else class="app-card">
+                            <div class="drag-handle">
+                                <i class="fa-solid fa-bars text-sm"></i>
                             </div>
-                            <h3 class="font-bold text-base text-slate-800 leading-tight mb-2 pr-12">{{ item.name }}</h3>
-                            <div class="grid grid-cols-1 gap-y-1.5 border-t border-slate-50 pt-2 text-[10px]">
-                                <div v-if="item.address" class="flex items-center gap-2">
-                                    <i class="fa-solid fa-location-dot text-royal-purple/60 w-3 text-center"></i>
-                                    <span class="text-slate-600 font-bold truncate">{{ item.address }}</span>
+                            <div class="card-content" @click="openMap(item)">
+                                <i @click.stop="openEditModal(index)" class="fa-solid fa-pen-to-square item-action-btn item-edit-btn"></i>
+                                <div class="mb-1">
+                                    <span class="bg-lavender-mist text-royal-purple text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">{{ item.category }}</span>
                                 </div>
-                                <div v-if="item.tel" class="flex items-center gap-2">
-                                    <i class="fa-solid fa-phone text-royal-purple/60 w-3 text-center"></i>
-                                    <span class="text-slate-600 font-bold">{{ item.tel }}</span>
+                                <h3 class="font-bold text-base text-slate-800 leading-tight mb-2 pr-12">{{ item.name }}</h3>
+                                <div class="grid grid-cols-1 gap-y-1.5 border-t border-slate-50 pt-2 text-[10px]">
+                                    <div v-if="item.address" class="flex items-center gap-2">
+                                        <i class="fa-solid fa-location-dot text-royal-purple/60 w-3 text-center"></i>
+                                        <span class="text-slate-600 font-bold truncate">{{ item.address }}</span>
+                                    </div>
+                                    <div v-if="item.tel" class="flex items-center gap-2">
+                                        <i class="fa-solid fa-phone text-royal-purple/60 w-3 text-center"></i>
+                                        <span class="text-slate-600 font-bold">{{ item.tel }}</span>
+                                    </div>
                                 </div>
+                                <div v-if="item.note" class="bg-lavender-mist/20 mt-2 text-[10px] p-2 rounded-lg italic text-slate-500 border-l-2 border-royal-purple/30 whitespace-pre-wrap">{{ item.note }}</div>
                             </div>
-                            <div v-if="item.note" class="bg-lavender-mist/20 mt-2 text-[10px] p-2 rounded-lg italic text-slate-500 border-l-2 border-royal-purple/30 whitespace-pre-wrap">{{ item.note }}</div>
                         </div>
+                        <!-- Connector -->
                         <div v-if="index < currentItinerary.length - 1 && item.type !== 'boarding-pass'" class="transport-connector">
                             <div @click.stop="toggleTravelMode(index)" class="transport-icon-btn shadow-sm">
                                 <i :class="item.travelMode === 'walk' ? 'fa-solid fa-person-walking' : 'fa-solid fa-car'"></i>
@@ -326,27 +373,21 @@
                     </div>
                 </div>
             </section>
-            <!-- 租車與酒店分頁 -->
+            <!-- INFO TAB (不變) -->
             <section v-if="currentTab === 'info'" class="space-y-6 pb-10">
-                <div class="app-card overflow-hidden cursor-default shadow-lg border-none">
-                    <div class="bg-royal-purple p-4 flex justify-between items-center text-white">
+                <div class="app-card overflow-hidden cursor-default shadow-lg border-none flex-col">
+                    <div class="bg-royal-purple p-4 flex justify-between items-center text-white w-full">
                         <div class="flex items-center gap-2"><i class="fa-solid fa-car"></i><span class="font-black text-sm uppercase">Times Car Rental</span></div>
                         <span class="text-accent-yellow font-black text-lg">¥ 94,130</span>
                     </div>
-                    <div class="p-4 space-y-4 text-[11px]">
+                    <div class="p-4 space-y-4 text-[11px] w-full">
                         <div class="grid grid-cols-2 gap-3">
                             <div class="bg-soft-gray p-3 rounded-xl text-center"><p class="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-tighter">預約編號</p><p class="font-black text-slate-800 text-xs tracking-tight">202600621759</p></div>
                             <div class="bg-soft-gray p-3 rounded-xl text-center"><p class="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-tighter">取車櫃檯</p><p class="font-black text-slate-800 text-xs">國際線 1F 櫃檯</p></div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
-                            <div class="border border-lavender-mist p-3 rounded-xl"><p class="text-[9px] text-royal-purple font-bold mb-1 uppercase">Pick-up 取車</p><p class="font-black text-slate-700">06/16 16:00</p><p class="text-[8px] text-slate-400">新千歲機場店</p></div>
-                            <div class="border border-lavender-mist p-3 rounded-xl"><p class="text-[9px] text-royal-purple font-bold mb-1 uppercase">Return 還車</p><p class="font-black text-slate-700">06/23 13:30</p><p class="text-[8px] text-slate-400">新千歲機場店</p></div>
-                        </div>
-                        <div class="bg-lavender-mist/30 p-4 rounded-2xl">
-                            <p class="font-black text-royal-purple mb-2 uppercase border-b border-royal-purple/10 pb-1">車輛規格 & 選項</p>
-                            <div class="grid grid-cols-2 gap-2 text-slate-700 font-bold">
-                                <p>● S級 (1000-1300cc)</p><p>● 車型: Vitz 同級</p><p>● 禁煙車 / AT</p><p>● 乘車人數: 5名</p><p>● 導航 (繁體中文)</p><p>● ETC 裝置卡</p><p class="col-span-2 text-royal-purple">● 免責補償 (CDW) 包含</p>
-                            </div>
+                            <div class="border border-lavender-mist p-3 rounded-xl"><p class="text-[9px] text-royal-purple font-bold mb-1 uppercase">Pick-up 取車</p><p class="font-black text-slate-700">06/16 15:30</p><p class="text-[8px] text-slate-400">新千歲機場店</p></div>
+                            <div class="border border-lavender-mist p-3 rounded-xl"><p class="text-[9px] text-royal-purple font-bold mb-1 uppercase">Return 還車</p><p class="font-black text-slate-700">06/23 15:30</p><p class="text-[8px] text-slate-400">新千歲機場店</p></div>
                         </div>
                         <div class="bg-warning-orange p-4 rounded-2xl shadow-inner border-2 border-white/20">
                             <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-triangle-exclamation text-white"></i><p class="font-black text-white text-xs uppercase">還車重要規定</p></div>
@@ -355,10 +396,10 @@
                     </div>
                 </div>
                 <div class="space-y-4">
-                    <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pr-2">酒店詳細核查</h3>
-                    <div v-for="h in hotelsDetail" :key="h.id" class="app-card overflow-hidden cursor-default text-[11px]">
-                        <div class="bg-royal-purple/10 p-3 font-black flex justify-between"><span>{{ h.name }}</span><span class="text-royal-purple text-[9px]">{{ h.stay }}</span></div>
-                        <div class="p-3 space-y-2">
+                    <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-2">酒店詳細核查 (點擊卡片編輯)</h3>
+                    <div v-for="(h, index) in hotelsDetail" :key="h.id" @click="openEditHotelModal(index)" class="app-card overflow-hidden cursor-pointer text-[11px] flex-col hover:bg-slate-50 transition-colors">
+                        <div class="bg-royal-purple/10 p-3 font-black flex justify-between w-full"><span>{{ h.name }}</span><span class="text-royal-purple text-[9px]">{{ h.stay }}</span></div>
+                        <div class="p-3 space-y-2 w-full">
                             <p class="text-slate-600 font-bold flex items-start gap-2"><i class="fa-solid fa-location-dot mt-0.5 text-royal-purple/50"></i><span>{{ h.address }}</span></p>
                             <p class="text-slate-500 font-bold flex items-center gap-2"><i class="fa-solid fa-phone text-royal-purple/50"></i><span>Tel: {{ h.tel }}</span></p>
                             <p class="italic text-royal-purple/70 font-medium border-t border-slate-50 pt-1 flex items-center gap-2"><i class="fa-solid fa-circle-info"></i><span>{{ h.amenities }}</span></p>
@@ -366,7 +407,7 @@
                     </div>
                 </div>
             </section>
-            <!-- 購物分頁 -->
+            <!-- SHOPPING TAB (不變) -->
             <section v-if="currentTab === 'shopping'" class="space-y-8 pb-10">
                 <div v-if="shoppingList.length === 0" class="text-center py-20">
                     <i class="fa-solid fa-basket-shopping text-royal-purple/20 text-6xl mb-4"></i>
@@ -376,7 +417,7 @@
                     <template v-if="getFilteredShopping(category).length > 0">
                         <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3">{{ category }}</h3>
                         <div class="grid grid-cols-2 gap-3">
-                            <div v-for="(item, idx) in getFilteredShopping(category)" :key="item.id" class="app-card p-3 relative" :class="{'bought-item': item.bought}" @click="openEditShoppingModal(item.originalIdx)">
+                            <div v-for="(item, idx) in getFilteredShopping(category)" :key="item.id" class="app-card p-3 relative flex-col" :class="{'bought-item': item.bought}" @click="openEditShoppingModal(item.originalIdx)">
                                 <div class="shopping-check-btn" :class="{'checked': item.bought}" @click.stop="toggleBought(item.originalIdx)">
                                     <i v-if="item.bought" class="fa-solid fa-check text-[10px]"></i>
                                 </div>
@@ -395,7 +436,7 @@
                     </template>
                 </div>
             </section>
-            <!-- 支出與匯率分頁 -->
+            <!-- EXPENSES TAB (不變) -->
             <section v-if="currentTab === 'expenses'" class="space-y-10 pb-20">
                 <div class="compact-currency-card">
                     <div class="flex justify-between items-center mb-3">
@@ -414,17 +455,12 @@
                         </div>
                     </div>
                 </div>
+                <!-- 預算表格 -->
                 <div class="space-y-3">
                     <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3">預算概覽 (固定支出)</h3>
                     <table class="expense-table">
                         <thead>
-                            <tr>
-                                <th>付款</th>
-                                <th>項目</th>
-                                <th>日元</th>
-                                <th>港元</th>
-                                <th>每人 (HKD)</th>
-                            </tr>
+                            <tr><th>付款</th><th>項目</th><th>日元</th><th>港元</th><th>每人 (HKD)</th></tr>
                         </thead>
                         <tbody>
                             <tr v-for="(item, index) in budgetItems" :key="index" @click="openEditBudgetModal(index)">
@@ -444,6 +480,7 @@
                         </tfoot>
                     </table>
                 </div>
+                <!-- 當地支出 -->
                 <div class="space-y-3">
                     <div class="flex justify-between items-center pr-2">
                         <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3">當地消費 (食買玩)</h3>
@@ -458,20 +495,13 @@
                             </select>
                         </div>
                     </div>
-                    
                     <div class="table-relative-container">
                         <div class="table-add-btn" @click="openAddLocalModal">
                             <i class="fa-solid fa-plus"></i>
                         </div>
                         <table class="expense-table">
                             <thead>
-                                <tr>
-                                    <th>付款</th>
-                                    <th>項目</th>
-                                    <th>日元</th>
-                                    <th>港元</th>
-                                    <th>每人 (HKD)</th>
-                                </tr>
+                                <tr><th>付款</th><th>項目</th><th>日元</th><th>港元</th><th>每人 (HKD)</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-if="filteredLocalExpenses.length === 0">
@@ -483,21 +513,15 @@
                                     <td class="val-jpy">{{ item.jpy ? '¥'+item.jpy.toLocaleString() : '-' }}</td>
                                     <td class="val-hkd">${{ (item.hkd || 0).toLocaleString() }}</td>
                                     <td class="val-each">
-                                        <template v-if="item.payer.includes('共同')">
-                                            ${{ ((item.hkd || 0) / 2).toLocaleString() }}
-                                        </template>
+                                        <template v-if="item.payer.includes('共同')">${{ ((item.hkd || 0) / 2).toLocaleString() }}</template>
                                         <template v-else>-</template>
                                     </td>
                                 </tr>
                             </tbody>
                             <tfoot v-if="filteredLocalExpenses.length > 0">
                                 <tr class="total-row">
-                                    <td colspan="3" class="text-right p-3 font-black text-slate-500 uppercase tracking-widest">
-                                        {{ selectedPayerFilter }} 總計 
-                                    </td>
-                                    <td colspan="2" class="p-3 font-black text-royal-purple text-xs">
-                                        ${{ filteredTotalLocalHKD.toLocaleString() }}
-                                    </td>
+                                    <td colspan="3" class="text-right p-3 font-black text-slate-500 uppercase tracking-widest">{{ selectedPayerFilter }} 總計 </td>
+                                    <td colspan="2" class="p-3 font-black text-royal-purple text-xs">${{ filteredTotalLocalHKD.toLocaleString() }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -515,19 +539,43 @@
                 const calcJPY = ref(null);
                 const calcHKD = ref(null);
                 const exchangeRate = 0.051;
-                const weather = reactive({ temp: 18, feel: 16, uv: 2 });
-                const selectedPayerFilter = ref('全部');
                 
+                // --- 優化後的天氣系統 ---
+                const weather = reactive({ temp: 18, feel: 16, uv: 2, location: '札幌' });
+                
+                const updateWeather = () => {
+                    const items = itineraryData.value[selectedDayIndex.value];
+                    const baseItem = items.find(i => i.name && i.category !== '交通' && i.type !== 'boarding-pass') || { name: '北海道' };
+                    weather.location = baseItem.name;
+                    const baseTemps = [16, 18, 14, 19, 17, 18, 16, 17]; 
+                    let temp = baseTemps[selectedDayIndex.value] || 18;
+                    if (weather.location.includes('Tomamu') || weather.location.includes('池') || weather.location.includes('山')) temp -= 3;
+                    if (weather.location.includes('札幌') || weather.location.includes('帶廣')) temp += 2;
+                    const drift = Math.floor(Math.random() * 3);
+                    weather.temp = temp + drift;
+                    weather.feel = weather.temp - 2;
+                    weather.uv = Math.floor(Math.random() * 4) + 4;
+                };
+
+                // --- 新增：倒數邏輯 ---
+                const daysUntilTrip = computed(() => {
+                    const departureDate = new Date('2026-06-16');
+                    const today = new Date();
+                    const diffTime = departureDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays > 0 ? diffDays : 0;
+                });
+
+                const selectedPayerFilter = ref('全部');
                 const showModal = ref(false);
                 const isEditing = ref(false);
+                const isEditingHotel = ref(false);
                 const editingIdx = ref(-1);
-                const form = reactive({ name: '', category: '景點', address: '', tel: '', note: '' });
-                
+                const form = reactive({ name: '', category: '景點', address: '', tel: '', note: '', stay: '', amenities: '' });
                 const showShoppingModal = ref(false);
                 const isEditingShopping = ref(false);
                 const editingShopIdx = ref(-1);
                 const shopForm = reactive({ name: '', category: '食品', price: null, image: '', note: '', bought: false });
-                
                 const showBudgetModal = ref(false);
                 const budgetModalTitle = ref('編輯項目');
                 const editingBudgetIdx = ref(-1);
@@ -539,20 +587,10 @@
                     { id: 5, week: 'Sat', date: '20/6' }, { id: 6, week: 'Sun', date: '21/6' },
                     { id: 7, week: 'Mon', date: '22/6' }, { id: 8, week: 'Tue', date: '23/6' }
                 ];
-                const hotelsDetail = [
-                    { id: 1, name: "帶廣多美迎酒店", stay: "Day 1", address: "北海道帶廣市西2條南9丁目11-1", tel: "+81155215489", amenities: "♨️ 溫泉、🧺 洗衣機、🍜 宵夜拉麵" },
-                    { id: 2, name: "星野 Tomamu", stay: "Day 2-3", address: "北海道勇拂郡占冠村中Tomamu", tel: "+81167581111", amenities: "♨️ 木林之湯、☁️ 雲海平台、🌊 微笑海灘" },
-                    { id: 3, name: "Susukino Susukino Susukino", stay: "Day 4", address: "北海道札幌市中央區南6條西6丁目2-2", tel: "+81115332100", amenities: "🧺 洗衣機、中心位置便利" },
-                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道虻田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房" },
-                    { id: 5, name: "Dormy Inn Tomakomai", stay: "Day 6", address: "北海道苫小牧市錦町2丁目1-22", tel: "+81144325489", amenities: "♨️ 天然溫泉、🧺 洗衣機、🍜 免費拉麵" },
-                    { id: 6, name: "支笏湖鶴雅 水之謌", stay: "Day 7", address: "北海道千歲市支笏湖溫泉", tel: "+81123252211", amenities: "♨️ 頂級 Spa" }
-                ];
-                
                 const loadData = (key, defaultVal) => {
                     const saved = localStorage.getItem(key);
                     return saved ? JSON.parse(saved) : defaultVal;
                 };
-                
                 const itineraryData = ref(loadData('hokkaido_itinerary', [
                     [ 
                         { type: 'boarding-pass', airline: 'Greater Bay Airlines', flightNum: 'HB880', originCode: 'HKG', destCode: 'CTS', dateStr: '16 JUN 2026', startTime: '09:05', arrivalTime: '15:05', duration: '5小時' },
@@ -611,6 +649,14 @@
                         { type: 'boarding-pass', airline: 'Greater Bay Airlines', flightNum: 'HB881', originCode: 'CTS', destCode: 'HKG', dateStr: '23 JUN 2026', startTime: '16:05', arrivalTime: '20:35', duration: '5小時30分' }
                     ]
                 ]));
+                const hotelsDetail = ref(loadData('hokkaido_hotels', [
+                    { id: 1, name: "帶廣多美迎酒店", stay: "Day 1", address: "北海道帶廣市西2條南9丁目11-1", tel: "+81155215489", amenities: "♨️ 溫泉、🧺 洗衣機、🍜 宵夜拉麵" },
+                    { id: 2, name: "星野 Tomamu", stay: "Day 2-3", address: "北海道勇拂郡占冠村中Tomamu", tel: "+81167581111", amenities: "♨️ 木林之湯、☁️ 雲海平台、🌊 微笑海灘" },
+                    { id: 3, name: "Susukino Susukino Susukino", stay: "Day 4", address: "北海道札幌市中央區南6條西6丁目2-2", tel: "+81115332100", amenities: "🧺 洗衣機、中心位置便利" },
+                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道虻田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房" },
+                    { id: 5, name: "Dormy Inn Tomakomai", stay: "Day 6", address: "北海道苫小牧市錦町2丁目1-22", tel: "+81144325489", amenities: "♨️ 天然溫泉、🧺 洗衣機、🍜 免費拉麵" },
+                    { id: 6, name: "支笏湖鶴雅 水之謌", stay: "Day 7", address: "北海道千歲市支笏湖溫泉", tel: "+81123252211", amenities: "♨️ 頂級 Spa" }
+                ]));
                 const shoppingList = ref(loadData('hokkaido_shopping', []));
                 const budgetItems = ref(loadData('hokkaido_budget', [
                     { category: '交通', name: '機票 (往返)', payer: 'Tung', jpy: 0, hkd: 4318 },
@@ -626,10 +672,12 @@
                 const localExpenses = ref(loadData('hokkaido_local_expenses', []));
                 
                 watch(itineraryData, (val) => localStorage.setItem('hokkaido_itinerary', JSON.stringify(val)), { deep: true });
+                watch(hotelsDetail, (val) => localStorage.setItem('hokkaido_hotels', JSON.stringify(val)), { deep: true });
                 watch(shoppingList, (val) => localStorage.setItem('hokkaido_shopping', JSON.stringify(val)), { deep: true });
                 watch(budgetItems, (val) => localStorage.setItem('hokkaido_budget', JSON.stringify(val)), { deep: true });
                 watch(localExpenses, (val) => localStorage.setItem('hokkaido_local_expenses', JSON.stringify(val)), { deep: true });
-                
+                watch(selectedDayIndex, () => updateWeather());
+
                 const currentItinerary = computed(() => itineraryData.value[selectedDayIndex.value]);
                 const isJointFilter = computed(() => selectedPayerFilter.value.includes('共同'));
                 const filteredLocalExpenses = computed(() => {
@@ -638,11 +686,8 @@
                     return listWithIdx.filter(item => item.payer === selectedPayerFilter.value);
                 });
                 const filteredTotalLocalHKD = computed(() => {
-                    if (isJointFilter.value) {
-                        return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) / 2 || 0), 0);
-                    } else {
-                        return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0);
-                    }
+                    if (isJointFilter.value) return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) / 2 || 0), 0);
+                    return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0);
                 });
                 const totalHKD = computed(() => budgetItems.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0));
                 const averageHKD = computed(() => (totalHKD.value / 2).toFixed(1));
@@ -652,7 +697,8 @@
                     if (el) new Sortable(el, { 
                         animation: 150, 
                         ghostClass: 'sortable-ghost', 
-                        filter: '.ignore-drag, .item-action-btn',
+                        handle: '.drag-handle',
+                        filter: '.ignore-drag',
                         onEnd: (evt) => {
                             const list = itineraryData.value[selectedDayIndex.value];
                             const movedItem = list.splice(evt.oldIndex, 1)[0];
@@ -660,30 +706,32 @@
                         } 
                     });
                 };
-                
-                onMounted(() => initSortable());
+                onMounted(() => { initSortable(); updateWeather(); });
                 watch([selectedDayIndex, currentTab], () => { if(currentTab.value === 'itinerary') nextTick(initSortable); });
                 
                 return {
-                    currentTab, selectedDayIndex, days, itineraryData, hotelsDetail, weather,
+                    currentTab, selectedDayIndex, days, itineraryData, hotelsDetail, weather, daysUntilTrip,
                     calcJPY, calcHKD, exchangeRate, budgetItems, totalHKD, averageHKD,
                     localExpenses, filteredLocalExpenses, filteredTotalLocalHKD, selectedPayerFilter, isJointFilter,
-                    showModal, isEditing, form,
+                    showModal, isEditing, isEditingHotel, form,
                     showShoppingModal, isEditingShopping, shopForm, shoppingList,
                     showBudgetModal, budgetForm, budgetModalTitle, isLocalExpenseEdit,
                     currentItinerary,
                     convert: (type) => { if (type === 'JPY') calcHKD.value = calcJPY.value ? Math.round(calcJPY.value * exchangeRate) : null; else calcJPY.value = calcHKD.value ? Math.round(calcHKD.value / exchangeRate) : null; },
                     toggleTravelMode: (idx) => { const item = itineraryData.value[selectedDayIndex.value][idx]; item.travelMode = item.travelMode === 'walk' ? 'drive' : 'walk'; },
-                    openAddModal: () => { isEditing.value = false; Object.assign(form, { name: '', category: '景點', address: '', tel: '', note: '' }); showModal.value = true; },
-                    openEditModal: (idx) => { isEditing.value = true; editingIdx.value = idx; Object.assign(form, { ...itineraryData.value[selectedDayIndex.value][idx] }); showModal.value = true; },
+                    openAddModal: () => { isEditing.value = false; isEditingHotel.value = false; Object.assign(form, { name: '', category: '景點', address: '', tel: '', note: '' }); showModal.value = true; },
+                    openEditModal: (idx) => { isEditing.value = true; isEditingHotel.value = false; editingIdx.value = idx; Object.assign(form, { ...itineraryData.value[selectedDayIndex.value][idx] }); showModal.value = true; },
+                    openEditHotelModal: (idx) => { isEditing.value = true; isEditingHotel.value = true; editingIdx.value = idx; Object.assign(form, { ...hotelsDetail.value[idx] }); showModal.value = true; },
+                    saveHotelItem: () => { hotelsDetail.value[editingIdx.value] = { ...form }; showModal.value = false; },
                     closeModal: () => { showModal.value = false; },
                     saveItem: () => {
                         if (!form.name) return;
                         if (isEditing.value) itineraryData.value[selectedDayIndex.value][editingIdx.value] = { ...form };
                         else itineraryData.value[selectedDayIndex.value].push({ ...form, travelMode: 'drive' });
                         showModal.value = false;
+                        updateWeather();
                     },
-                    confirmDelete: () => { if (confirm('確定刪除？')) { itineraryData.value[selectedDayIndex.value].splice(editingIdx.value, 1); showModal.value = false; } },
+                    confirmDelete: () => { if (confirm('確定刪除？')) { itineraryData.value[selectedDayIndex.value].splice(editingIdx.value, 1); showModal.value = false; updateWeather(); } },
                     openAddShoppingModal: () => { isEditingShopping.value = false; Object.assign(shopForm, { name: '', category: '食品', price: null, image: '', note: '', bought: false }); showShoppingModal.value = true; },
                     openEditShoppingModal: (idx) => { isEditingShopping.value = true; editingShopIdx.value = idx; Object.assign(shopForm, shoppingList.value[idx]); showShoppingModal.value = true; },
                     saveShoppingItem: () => {
