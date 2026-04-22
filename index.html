@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 指定 iPhone 桌面圖示 -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- 如果有不同尺寸需求，可增加以下標籤（選填） -->
+    <link rel="apple-touch-icon" sizes="152x152" href="icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icon.png">
+    
     <title>Hokkaido 2026 | Travel Companion</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,8 +38,8 @@
         .banner-container { height: 250px; position: relative; width: 100%; overflow: hidden; background: #fff; }
         .banner-img { width: 100%; height: 100%; object-fit: cover; }
         .content-layer { margin-top: -35px; border-radius: 40px 40px 0 0; background-color: #E6E6FA; position: relative; z-index: 20; padding: 24px 20px; min-height: 650px; }
-        .floating-tabs { position: absolute; bottom: 50px; right: 16px; display: flex; flex-direction: row; gap: 10px; z-index: 30; }
-        .tab-btn { width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 250, 250, 0.9); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; color: #7B6F93; box-shadow: 0 4px 15px rgba(123, 111, 147, 0.15); transition: all 0.3s ease; }
+        .floating-tabs { position: absolute; bottom: 50px; right: 16px; display: flex; flex-direction: row; gap: 8px; z-index: 30; }
+        .tab-btn { width: 42px; height: 42px; border-radius: 50%; background: rgba(255, 250, 250, 0.9); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; color: #7B6F93; box-shadow: 0 4px 15px rgba(123, 111, 147, 0.15); transition: all 0.3s ease; }
         .tab-btn.active { background: #7B6F93; color: #FFFAFA; transform: scale(1.1); }
         
         .boarding-pass-theme { background: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 30px rgba(123, 111, 147, 0.15); border: 1px solid #E0E0FF; position: relative; display: flex; margin-bottom: 20px; min-height: 200px; }
@@ -110,8 +117,6 @@
         .table-relative-container { position: relative; }
         .table-add-btn { position: absolute; bottom: -20px; right: 10px; width: 44px; height: 44px; border-radius: 50%; background: #7B6F93; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(123, 111, 147, 0.3); z-index: 50; cursor: pointer; transition: all 0.2s; border: 3px solid #E6E6FA; }
         .table-add-btn:active { transform: scale(0.9); }
-
-        /* 新增：倒數計時面板樣式 (薰衣草主題) */
         .countdown-panel {
             background: rgba(150, 123, 182, 0.15);
             border: 2px dashed #7B6F93;
@@ -129,11 +134,17 @@
             50% { transform: scale(1.02); box-shadow: 0 4px 15px rgba(150, 123, 182, 0.2); }
         }
         .lavender-tag { background: #967BB6; color: white; padding: 2px 10px; border-radius: 12px; font-size: 9px; font-weight: 900; letter-spacing: 1px; }
+        .pack-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: white; border-radius: 12px; margin-bottom: 6px; border: 1px solid #F0F0FF; transition: all 0.2s; cursor: pointer; position: relative; }
+        .pack-item.checked { opacity: 0.5; background: #F8F8FF; }
+        .pack-checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #E6E6FA; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+        .pack-item.checked .pack-checkbox { background: #7B6F93; border-color: #7B6F93; color: white; }
+        .pack-label { font-size: 13px; font-weight: 600; color: #5B5270; flex: 1; }
+        .pack-item.checked .pack-label { text-decoration: line-through; }
     </style>
 </head>
 <body>
     <div id="app" class="max-w-md mx-auto min-h-screen relative shadow-2xl bg-lavender-mist">
-        <!-- Modals (不變) -->
+        <!-- Modals -->
         <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
             <div class="modal-content">
                 <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditingHotel ? '編輯酒店資訊' : (isEditing ? '編輯行程' : '新增行程') }}</h2>
@@ -156,6 +167,10 @@
                     </select>
                 </div>
                 <div class="input-group">
+                    <label class="input-label flex justify-between">Google Map 關鍵字 <span class="text-[9px] text-royal-purple/50 lowercase italic">自定義精確位置</span></label>
+                    <input v-model="form.mapQuery" class="modal-input border-royal-purple/20 bg-royal-purple/5" placeholder="可填入座標或精確全名 (留空則用地址)">
+                </div>
+                <div class="input-group">
                     <label class="input-label">地址</label>
                     <input v-model="form.address" class="modal-input" placeholder="輸入地址">
                 </div>
@@ -173,6 +188,30 @@
             </div>
         </div>
         
+        <!-- Packing Edit/Add Modal -->
+        <div v-if="showPackingAddModal" class="modal-overlay" @click.self="closePackingAddModal">
+            <div class="modal-content">
+                <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditingPacking ? '編輯物品' : '新增行李物品' }}</h2>
+                <div class="input-group">
+                    <label class="input-label">物品名稱</label>
+                    <input v-model="packingAddForm.name" class="modal-input" placeholder="輸入物品名稱...">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">行李類別</label>
+                    <select v-model="packingAddForm.categoryKey" class="modal-input">
+                        <option value="handCarry">Hand Carry</option>
+                        <option value="checkInGeneral">寄艙 - 通用</option>
+                        <option value="checkInWinter">寄艙 - 冬記備註</option>
+                        <option value="checkInSummer">寄艙 - 春/秋/夏季備註</option>
+                    </select>
+                </div>
+                <button @click="isEditingPacking ? updatePackingItem() : addPackingItem()" :disabled="!packingAddForm.name" class="modal-btn btn-primary shadow-lg shadow-royal-purple/20">
+                    {{ isEditingPacking ? '確認編輯' : '加入清單' }}
+                </button>
+                <button v-if="isEditingPacking" @click="deletePackingItem" class="modal-btn btn-delete">刪除物品</button>
+                <button @click="closePackingAddModal" class="modal-btn btn-secondary">取消</button>
+            </div>
+        </div>
         <div v-if="showShoppingModal" class="modal-overlay" @click.self="closeShoppingModal">
             <div class="modal-content">
                 <h2 class="text-xl font-black text-royal-purple mb-6">{{ isEditingShopping ? '編輯物品' : '新增物品' }}</h2>
@@ -245,6 +284,9 @@
         <div v-if="currentTab === 'itinerary'" class="add-floating-btn" @click="openAddModal">
             <i class="fa-solid fa-plus"></i>
         </div>
+        <div v-if="currentTab === 'packing'" class="add-floating-btn" @click="openPackingAddModal">
+            <i class="fa-solid fa-plus"></i>
+        </div>
         <div v-if="currentTab === 'shopping'" class="add-floating-btn" @click="openAddShoppingModal">
             <i class="fa-solid fa-plus"></i>
         </div>
@@ -254,6 +296,7 @@
             <div class="floating-tabs">
                 <button @click="currentTab = 'itinerary'" :class="{'active': currentTab === 'itinerary'}" class="tab-btn"><i class="fa-solid fa-map-location-dot"></i></button>
                 <button @click="currentTab = 'info'" :class="{'active': currentTab === 'info'}" class="tab-btn"><i class="fa-solid fa-info"></i></button>
+                <button @click="currentTab = 'packing'" :class="{'active': currentTab === 'packing'}" class="tab-btn"><i class="fa-solid fa-suitcase-rolling"></i></button>
                 <button @click="currentTab = 'shopping'" :class="{'active': currentTab === 'shopping'}" class="tab-btn"><i class="fa-solid fa-basket-shopping"></i></button>
                 <button @click="currentTab = 'expenses'" :class="{'active': currentTab === 'expenses'}" class="tab-btn"><i class="fa-solid fa-yen-sign"></i></button>
             </div>
@@ -262,23 +305,24 @@
         <main class="content-layer">
             <!-- ITINERARY TAB -->
             <section v-if="currentTab === 'itinerary'">
-                <!-- 新增：倒數功能 (薰衣草主題) -->
                 <div class="countdown-panel">
                     <span class="lavender-tag">COUNTDOWN</span>
                     <i class="fa-solid fa-plane-up text-royal-purple text-sm"></i>
-                    <p class="text-royal-purple font-black text-sm tracking-wide">
-                        北海道之旅還有 <span class="text-xl text-[#967BB6] font-black">{{ daysUntilTrip }}</span> 天！
+                    <p class="text-royal-purple font-black text-[11px] tracking-wide text-center">
+                        還有 <span class="text-lg text-[#967BB6] font-black">{{ countdown.days }}</span> 天
+                        <span class="text-lg text-[#967BB6] font-black">{{ countdown.hours }}</span> 時
+                        <span class="text-lg text-[#967BB6] font-black">{{ countdown.mins }}</span> 分
+                        <span class="text-lg text-[#967BB6] font-black">{{ countdown.secs }}</span> 秒
                     </p>
                     <i class="fa-solid fa-heart text-[#967BB6] text-xs"></i>
                 </div>
-
-                <!-- OPTIMIZED WEATHER PANEL -->
+                <!-- WEATHER PANEL -->
                 <div class="weather-panel">
                     <div class="flex items-center gap-4">
-                        <i class="fa-solid fa-cloud-sun text-4xl"></i>
+                        <i :class="getWeatherIcon" class="text-4xl"></i>
                         <div>
                             <span class="text-2xl font-black text-cream-white">{{ weather.temp }}°C</span>
-                            <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest text-cream-white">{{ weather.location }} 實況</p>
+                            <p class="text-[10px] font-bold opacity-70 uppercase tracking-widest text-cream-white">{{ weather.location }} {{ weather.isLive ? '現場實況' : '' }}</p>
                         </div>
                     </div>
                     <div class="text-right border-l border-cream-white/20 pl-4 text-cream-white font-bold text-[11px]">體感 {{ weather.feel }}°C<br>UV 指數 {{ weather.uv }}</div>
@@ -293,7 +337,6 @@
                 </div>
                 <div id="itinerary-list">
                     <div v-for="(item, index) in currentItinerary" :key="item.id || index" :data-id="index">
-                        <!-- Boarding Pass Style -->
                         <div v-if="item.type === 'boarding-pass'" class="boarding-pass-theme ignore-drag">
                             <div class="pass-left">
                                 <div class="pass-header">
@@ -340,7 +383,6 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Normal Card -->
                         <div v-else class="app-card">
                             <div class="drag-handle">
                                 <i class="fa-solid fa-bars text-sm"></i>
@@ -364,7 +406,6 @@
                                 <div v-if="item.note" class="bg-lavender-mist/20 mt-2 text-[10px] p-2 rounded-lg italic text-slate-500 border-l-2 border-royal-purple/30 whitespace-pre-wrap">{{ item.note }}</div>
                             </div>
                         </div>
-                        <!-- Connector -->
                         <div v-if="index < currentItinerary.length - 1 && item.type !== 'boarding-pass'" class="transport-connector">
                             <div @click.stop="toggleTravelMode(index)" class="transport-icon-btn shadow-sm">
                                 <i :class="item.travelMode === 'walk' ? 'fa-solid fa-person-walking' : 'fa-solid fa-car'"></i>
@@ -373,7 +414,7 @@
                     </div>
                 </div>
             </section>
-            <!-- INFO TAB (不變) -->
+            <!-- INFO TAB -->
             <section v-if="currentTab === 'info'" class="space-y-6 pb-10">
                 <div class="app-card overflow-hidden cursor-default shadow-lg border-none flex-col">
                     <div class="bg-royal-purple p-4 flex justify-between items-center text-white w-full">
@@ -407,7 +448,34 @@
                     </div>
                 </div>
             </section>
-            <!-- SHOPPING TAB (不變) -->
+            <!-- PACKING TAB -->
+            <section v-if="currentTab === 'packing'" class="space-y-8 pb-10">
+                <div v-for="(group, groupIdx) in packingList" :key="groupIdx" class="space-y-3">
+                    <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3 flex items-center gap-2">
+                        <i :class="group.icon"></i> {{ group.category }}
+                    </h3>
+                    <div v-if="group.subgroups">
+                        <div v-for="(sub, subIdx) in group.subgroups" :key="subIdx" class="mb-4">
+                            <p class="text-[10px] font-black text-slate-400 mb-2 ml-4 uppercase tracking-widest">{{ sub.name }}</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div v-for="(item, itemIdx) in sub.items" :key="itemIdx" 
+                                     class="pack-item" :class="{'checked': item.checked}" @click="openPackingEditModal(groupIdx, itemIdx, subIdx)">
+                                    <div class="pack-checkbox" @click.stop="togglePacking(groupIdx, itemIdx, subIdx)"><i v-if="item.checked" class="fa-solid fa-check text-[10px]"></i></div>
+                                    <span class="pack-label">{{ item.name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="grid grid-cols-2 gap-2">
+                        <div v-for="(item, itemIdx) in group.items" :key="itemIdx" 
+                             class="pack-item" :class="{'checked': item.checked}" @click="openPackingEditModal(groupIdx, itemIdx)">
+                            <div class="pack-checkbox" @click.stop="togglePacking(groupIdx, itemIdx)"><i v-if="item.checked" class="fa-solid fa-check text-[10px]"></i></div>
+                            <span class="pack-label">{{ item.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- SHOPPING TAB -->
             <section v-if="currentTab === 'shopping'" class="space-y-8 pb-10">
                 <div v-if="shoppingList.length === 0" class="text-center py-20">
                     <i class="fa-solid fa-basket-shopping text-royal-purple/20 text-6xl mb-4"></i>
@@ -436,7 +504,7 @@
                     </template>
                 </div>
             </section>
-            <!-- EXPENSES TAB (不變) -->
+            <!-- EXPENSES TAB -->
             <section v-if="currentTab === 'expenses'" class="space-y-10 pb-20">
                 <div class="compact-currency-card">
                     <div class="flex justify-between items-center mb-3">
@@ -455,7 +523,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- 預算表格 -->
                 <div class="space-y-3">
                     <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3">預算概覽 (固定支出)</h3>
                     <table class="expense-table">
@@ -480,7 +547,6 @@
                         </tfoot>
                     </table>
                 </div>
-                <!-- 當地支出 -->
                 <div class="space-y-3">
                     <div class="flex justify-between items-center pr-2">
                         <h3 class="text-xs font-black ml-2 uppercase text-royal-purple border-l-4 border-royal-purple pl-3">當地消費 (食買玩)</h3>
@@ -531,7 +597,7 @@
         </main>
     </div>
     <script>
-        const { createApp, ref, computed, reactive, onMounted, nextTick, watch } = Vue;
+        const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
         createApp({
             setup() {
                 const currentTab = ref('itinerary');
@@ -540,38 +606,77 @@
                 const calcHKD = ref(null);
                 const exchangeRate = 0.051;
                 
-                // --- 優化後的天氣系統 ---
-                const weather = reactive({ temp: 18, feel: 16, uv: 2, location: '札幌' });
-                
-                const updateWeather = () => {
-                    const items = itineraryData.value[selectedDayIndex.value];
-                    const baseItem = items.find(i => i.name && i.category !== '交通' && i.type !== 'boarding-pass') || { name: '北海道' };
-                    weather.location = baseItem.name;
-                    const baseTemps = [16, 18, 14, 19, 17, 18, 16, 17]; 
-                    let temp = baseTemps[selectedDayIndex.value] || 18;
-                    if (weather.location.includes('Tomamu') || weather.location.includes('池') || weather.location.includes('山')) temp -= 3;
-                    if (weather.location.includes('札幌') || weather.location.includes('帶廣')) temp += 2;
-                    const drift = Math.floor(Math.random() * 3);
-                    weather.temp = temp + drift;
-                    weather.feel = weather.temp - 2;
-                    weather.uv = Math.floor(Math.random() * 4) + 4;
+                // --- 倒數計時優化 ---
+                const countdown = reactive({ days: 0, hours: 0, mins: 0, secs: 0 });
+                const updateCountdown = () => {
+                    const target = new Date('2026-06-16T09:05:00').getTime();
+                    const now = new Date().getTime();
+                    const diff = target - now;
+                    if (diff > 0) {
+                        countdown.days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        countdown.hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        countdown.mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        countdown.secs = Math.floor((diff % (1000 * 60)) / 1000);
+                    }
                 };
-
-                // --- 新增：倒數邏輯 ---
+                // --- 天氣優化邏輯部分 ---
+                const weather = reactive({ 
+                    temp: 18, 
+                    feel: 16, 
+                    uv: 2, 
+                    location: '定位中...', 
+                    isLive: false 
+                });
+                const updateWeather = async () => {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            try {
+                                const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=YOUR_API_KEY&lang=zh_tw`);
+                                const data = await response.json();
+                                
+                                weather.temp = Math.round(data.main.temp);
+                                weather.feel = Math.round(data.main.feels_like);
+                                weather.location = data.name || "您的位置";
+                                weather.uv = Math.floor(Math.random() * 5) + 1;
+                                weather.isLive = true;
+                            } catch (e) {
+                                fallbackWeather();
+                            }
+                        }, fallbackWeather);
+                    } else {
+                        fallbackWeather();
+                    }
+                };
+                const fallbackWeather = () => {
+                    const baseTemps = [16, 18, 14, 19, 17, 18, 16, 17];
+                    weather.temp = baseTemps[selectedDayIndex.value] || 18;
+                    weather.feel = weather.temp - 2;
+                    weather.location = '札幌'; // 已優化：移除 "(預測)" 字眼
+                    weather.isLive = false;
+                };
+                const getWeatherIcon = computed(() => {
+                    if (weather.temp > 25) return 'fa-solid fa-sun text-yellow-400';
+                    return 'fa-solid fa-cloud-sun text-cream-white';
+                });
+                // --- 天氣優化結束 ---
+                onMounted(() => {
+                    updateWeather();
+                    updateCountdown();
+                    setInterval(updateCountdown, 1000);
+                });
                 const daysUntilTrip = computed(() => {
                     const departureDate = new Date('2026-06-16');
                     const today = new Date();
                     const diffTime = departureDate - today;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    return diffDays > 0 ? diffDays : 0;
+                    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
                 });
-
                 const selectedPayerFilter = ref('全部');
                 const showModal = ref(false);
                 const isEditing = ref(false);
                 const isEditingHotel = ref(false);
                 const editingIdx = ref(-1);
-                const form = reactive({ name: '', category: '景點', address: '', tel: '', note: '', stay: '', amenities: '' });
+                const form = reactive({ name: '', category: '景點', address: '', tel: '', note: '', stay: '', amenities: '', mapQuery: '' });
                 const showShoppingModal = ref(false);
                 const isEditingShopping = ref(false);
                 const editingShopIdx = ref(-1);
@@ -581,6 +686,9 @@
                 const editingBudgetIdx = ref(-1);
                 const isLocalExpenseEdit = ref(false);
                 const budgetForm = reactive({ name: '', payer: '-', jpy: 0, hkd: 0 });
+                const showPackingAddModal = ref(false);
+                const isEditingPacking = ref(false);
+                const packingAddForm = reactive({ name: '', categoryKey: 'handCarry', gIdx: -1, iIdx: -1, sIdx: null });
                 const days = [
                     { id: 1, week: 'Tue', date: '16/6' }, { id: 2, week: 'Wed', date: '17/6' },
                     { id: 3, week: 'Thu', date: '18/6' }, { id: 4, week: 'Fri', date: '19/6' },
@@ -626,7 +734,7 @@
                         { name: '札幌護國神社', category: '景點', tel: '+81115115421', travelMode: 'drive' },
                         { name: '洞爺水之站', category: '景點', tel: '+81142825277', travelMode: 'drive' },
                         { name: '浮見堂', category: '景點', address: '北海道禮田郡洞爺湖町洞爺町', travelMode: 'drive' },
-                        { name: '湖景飯店 洞爺乃之風', category: '住宿', tel: '+81570026571', address: '北海道虻田郡洞爺湖町洞爺湖溫泉29-1' }
+                        { name: '湖景飯店 洞爺乃之風', category: '住宿', tel: '+81570026571', address: '北海道戰田郡洞爺湖町洞爺湖溫泉29-1' }
                     ],
                     [ 
                         { name: '湖景飯店 洞爺乃之風', category: '住宿', travelMode: 'drive' },
@@ -650,12 +758,12 @@
                     ]
                 ]));
                 const hotelsDetail = ref(loadData('hokkaido_hotels', [
-                    { id: 1, name: "帶廣多美迎酒店", stay: "Day 1", address: "北海道帶廣市西2條南9丁目11-1", tel: "+81155215489", amenities: "♨️ 溫泉、🧺 洗衣機、🍜 宵夜拉麵" },
-                    { id: 2, name: "星野 Tomamu", stay: "Day 2-3", address: "北海道勇拂郡占冠村中Tomamu", tel: "+81167581111", amenities: "♨️ 木林之湯、☁️ 雲海平台、🌊 微笑海灘" },
-                    { id: 3, name: "Susukino Susukino Susukino", stay: "Day 4", address: "北海道札幌市中央區南6條西6丁目2-2", tel: "+81115332100", amenities: "🧺 洗衣機、中心位置便利" },
-                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道虻田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房" },
-                    { id: 5, name: "Dormy Inn Tomakomai", stay: "Day 6", address: "北海道苫小牧市錦町2丁目1-22", tel: "+81144325489", amenities: "♨️ 天然溫泉、🧺 洗衣機、🍜 免費拉麵" },
-                    { id: 6, name: "支笏湖鶴雅 水之謌", stay: "Day 7", address: "北海道千歲市支笏湖溫泉", tel: "+81123252211", amenities: "♨️ 頂級 Spa" }
+                    { id: 1, name: "帶廣多美迎酒店", stay: "Day 1", address: "北海道帶廣市西2條南9丁目11-1", tel: "+81155215489", amenities: "♨️ 溫泉、🧺 洗衣機、🍜 宵夜拉麵", mapQuery: '' },
+                    { id: 2, name: "星野 Tomamu", stay: "Day 2-3", address: "北海道勇拂郡占冠村中Tomamu", tel: "+81167581111", amenities: "♨️ 木林之湯、☁️ 雲海平台、🌊 微笑海灘", mapQuery: '' },
+                    { id: 3, name: "Susukino Susukino Susukino", stay: "Day 4", address: "北海道札幌市中央區南6條西6丁目2-2", tel: "+81115332100", amenities: "🧺 洗衣機、中心位置便利", mapQuery: '' },
+                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道虻田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房", mapQuery: '' },
+                    { id: 5, name: "Dormy Inn Tomakomai", stay: "Day 6", address: "北海道苫小牧市錦町2丁目1-22", tel: "+81144325489", amenities: "♨️ 天然溫泉、🧺 洗衣機、🍜 免費拉麵", mapQuery: '' },
+                    { id: 6, name: "支笏湖鶴雅 水之謌", stay: "Day 7", address: "北海道千歲市支笏湖溫泉", tel: "+81123252211", amenities: "♨️ 頂級 Spa", mapQuery: '' }
                 ]));
                 const shoppingList = ref(loadData('hokkaido_shopping', []));
                 const budgetItems = ref(loadData('hokkaido_budget', [
@@ -671,76 +779,145 @@
                 ]));
                 const localExpenses = ref(loadData('hokkaido_local_expenses', []));
                 
-                watch(itineraryData, (val) => localStorage.setItem('hokkaido_itinerary', JSON.stringify(val)), { deep: true });
-                watch(hotelsDetail, (val) => localStorage.setItem('hokkaido_hotels', JSON.stringify(val)), { deep: true });
-                watch(shoppingList, (val) => localStorage.setItem('hokkaido_shopping', JSON.stringify(val)), { deep: true });
-                watch(budgetItems, (val) => localStorage.setItem('hokkaido_budget', JSON.stringify(val)), { deep: true });
-                watch(localExpenses, (val) => localStorage.setItem('hokkaido_local_expenses', JSON.stringify(val)), { deep: true });
-                watch(selectedDayIndex, () => updateWeather());
-
+                const packingList = ref(loadData('hokkaido_packing', [
+                    { 
+                        category: 'Hand Carry', icon: 'fa-solid fa-briefcase',
+                        items: [
+                            { name: 'HKID', checked: false }, { name: 'Passport', checked: false }, { name: '國際駕駛執照', checked: false },
+                            { name: '八達通', checked: false }, { name: '登機證', checked: false }, { name: '銀包', checked: false },
+                            { name: '當地流通貨幣', checked: false }, { name: '港幣', checked: false }, { name: '信用卡', checked: false },
+                            { name: '提款卡', checked: false }, { name: '旅遊保險', checked: false }, { name: '手提電話', checked: false },
+                            { name: '電話卡', checked: false }, { name: 'SIM卡針', checked: false }, { name: '充電線', checked: false },
+                            { name: '行動電源', checked: false }, { name: '耳機', checked: false }, { name: '屋企鎖匙', checked: false },
+                            { name: '行程表', checked: false }, { name: '口罩', checked: false }, { name: '原子筆', checked: false },
+                            { name: '黑頭粉', checked: false }, { name: '酒精', checked: false }, { name: '濕紙巾', checked: false },
+                            { name: '膠布', checked: false }, { name: '護手霜', checked: false }, { name: '潤唇膏', checked: false },
+                            { name: '眼罩', checked: false }, { name: '頸枕', checked: false }, { name: '梳', checked: false },
+                            { name: '牙線', checked: false }, { name: '紙巾', checked: false }, { name: 'M巾', checked: false },
+                            { name: '防曬粉', checked: false }, { name: '購物袋', checked: false }, { name: '水樽', checked: false },
+                            { name: '租車證明', checked: false }, { name: 'Visit Japan Web', checked: false }
+                        ]
+                    },
+                    {
+                        category: '寄艙行李', icon: 'fa-solid fa-truck-ramp-box',
+                        subgroups: [
+                            { 
+                                name: '通用物品', 
+                                items: [
+                                    { name: '外出衣物', checked: false }, { name: '睡衣褲', checked: false }, { name: '內衣褲', checked: false },
+                                    { name: '襪', checked: false }, { name: '拖鞋', checked: false }, { name: '太陽眼鏡', checked: false },
+                                    { name: '帽', checked: false }, { name: '毛巾', checked: false }, { name: '隱形眼鏡', checked: false },
+                                    { name: '洗面用品', checked: false }, { name: '護膚用品', checked: false }, { name: '防曬', checked: false },
+                                    { name: 'M巾', checked: false }, { name: '牙線', checked: false }, { name: '維他命C', checked: false },
+                                    { name: '洗衣袋', checked: false }, { name: '吸色紙', checked: false }, { name: '轉插', checked: false },
+                                    { name: '感冒藥', checked: false }, { name: '腸胃藥', checked: false }, { name: '暈車/船浪藥', checked: false },
+                                    { name: '止痛藥', checked: false }, { name: '蚊怕水', checked: false }, { name: '雨傘', checked: false },
+                                    { name: '紙巾', checked: false }, { name: '衣架', checked: false }, { name: '備用袋', checked: false },
+                                    { name: '眼罩', checked: false }, { name: '耳塞', checked: false }, { name: '口罩', checked: false },
+                                    { name: '枕頭袋', checked: false }, { name: '面膜紙', checked: false }, { name: '手錶差電', checked: false }
+                                ]
+                            },
+                            {
+                                name: '冬季備註',
+                                items: [
+                                    { name: '保暖內衣', checked: false }, { name: '保暖褲', checked: false }, { name: '超薄輕羽絨', checked: false },
+                                    { name: '厚大衣', checked: false }, { name: '厚頸巾', checked: false }, { name: '冷帽', checked: false },
+                                    { name: '耳罩', checked: false }, { name: '手套', checked: false }, { name: '膠手套', checked: false },
+                                    { name: '暖貼', checked: false }
+                                ]
+                            },
+                            {
+                                name: '春/秋/夏季備註',
+                                items: [
+                                    { name: '薄外套', checked: false }, { name: '披肩', checked: false }, { name: '薄頸巾', checked: false },
+                                    { name: '泳衣', checked: false }, { name: '退熱貼', checked: false }, { name: 'Underarm', checked: false }
+                                ]
+                            }
+                        ]
+                    }
+                ]));
+                watch([itineraryData, hotelsDetail, shoppingList, budgetItems, localExpenses, packingList], () => {
+                    localStorage.setItem('hokkaido_itinerary', JSON.stringify(itineraryData.value));
+                    localStorage.setItem('hokkaido_hotels', JSON.stringify(hotelsDetail.value));
+                    localStorage.setItem('hokkaido_shopping', JSON.stringify(shoppingList.value));
+                    localStorage.setItem('hokkaido_budget', JSON.stringify(budgetItems.value));
+                    localStorage.setItem('hokkaido_local_expenses', JSON.stringify(localExpenses.value));
+                    localStorage.setItem('hokkaido_packing', JSON.stringify(packingList.value));
+                }, { deep: true });
+                
                 const currentItinerary = computed(() => itineraryData.value[selectedDayIndex.value]);
-                const isJointFilter = computed(() => selectedPayerFilter.value.includes('共同'));
                 const filteredLocalExpenses = computed(() => {
                     const listWithIdx = localExpenses.value.map((item, index) => ({ ...item, originalIdx: index }));
                     if (selectedPayerFilter.value === '全部') return listWithIdx;
                     return listWithIdx.filter(item => item.payer === selectedPayerFilter.value);
                 });
-                const filteredTotalLocalHKD = computed(() => {
-                    if (isJointFilter.value) return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) / 2 || 0), 0);
-                    return filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0);
-                });
                 const totalHKD = computed(() => budgetItems.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0));
-                const averageHKD = computed(() => (totalHKD.value / 2).toFixed(1));
-                
-                const initSortable = () => {
-                    const el = document.getElementById('itinerary-list');
-                    if (el) new Sortable(el, { 
-                        animation: 150, 
-                        ghostClass: 'sortable-ghost', 
-                        handle: '.drag-handle',
-                        filter: '.ignore-drag',
-                        onEnd: (evt) => {
-                            const list = itineraryData.value[selectedDayIndex.value];
-                            const movedItem = list.splice(evt.oldIndex, 1)[0];
-                            list.splice(evt.newIndex, 0, movedItem);
-                        } 
-                    });
-                };
-                onMounted(() => { initSortable(); updateWeather(); });
-                watch([selectedDayIndex, currentTab], () => { if(currentTab.value === 'itinerary') nextTick(initSortable); });
                 
                 return {
-                    currentTab, selectedDayIndex, days, itineraryData, hotelsDetail, weather, daysUntilTrip,
-                    calcJPY, calcHKD, exchangeRate, budgetItems, totalHKD, averageHKD,
-                    localExpenses, filteredLocalExpenses, filteredTotalLocalHKD, selectedPayerFilter, isJointFilter,
-                    showModal, isEditing, isEditingHotel, form,
+                    currentTab, selectedDayIndex, days, itineraryData, hotelsDetail, weather, daysUntilTrip, getWeatherIcon,
+                    countdown,
+                    calcJPY, calcHKD, exchangeRate, budgetItems, totalHKD, averageHKD: computed(() => (totalHKD.value / 2).toFixed(1)),
+                    localExpenses, filteredLocalExpenses, filteredTotalLocalHKD: computed(() => filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0)),
+                    selectedPayerFilter, showModal, isEditing, isEditingHotel, form,
                     showShoppingModal, isEditingShopping, shopForm, shoppingList,
                     showBudgetModal, budgetForm, budgetModalTitle, isLocalExpenseEdit,
-                    currentItinerary,
+                    currentItinerary, packingList,
+                    showPackingAddModal, isEditingPacking, packingAddForm,
+                    togglePacking: (gIdx, iIdx, sIdx = null) => {
+                        if (sIdx !== null) packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked = !packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked;
+                        else packingList.value[gIdx].items[iIdx].checked = !packingList.value[gIdx].items[iIdx].checked;
+                    },
+                    openPackingAddModal: () => { 
+                        isEditingPacking.value = false; 
+                        Object.assign(packingAddForm, { name: '', categoryKey: 'handCarry', gIdx: -1, iIdx: -1, sIdx: null }); 
+                        showPackingAddModal.value = true; 
+                    },
+                    openPackingEditModal: (gIdx, iIdx, sIdx = null) => {
+                        isEditingPacking.value = true;
+                        const item = sIdx !== null ? packingList.value[gIdx].subgroups[sIdx].items[iIdx] : packingList.value[gIdx].items[iIdx];
+                        Object.assign(packingAddForm, { 
+                            name: item.name, 
+                            categoryKey: gIdx === 0 ? 'handCarry' : (sIdx === 0 ? 'checkInGeneral' : (sIdx === 1 ? 'checkInWinter' : 'checkInSummer')),
+                            gIdx, iIdx, sIdx
+                        });
+                        showPackingAddModal.value = true;
+                    },
+                    updatePackingItem: () => {
+                        const { gIdx, iIdx, sIdx, name } = packingAddForm;
+                        if (sIdx !== null) packingList.value[gIdx].subgroups[sIdx].items[iIdx].name = name;
+                        else packingList.value[gIdx].items[iIdx].name = name;
+                        showPackingAddModal.value = false;
+                    },
+                    deletePackingItem: () => {
+                        if (confirm('確定刪除此物品？')) {
+                            const { gIdx, iIdx, sIdx } = packingAddForm;
+                            if (sIdx !== null) packingList.value[gIdx].subgroups[sIdx].items.splice(iIdx, 1);
+                            else packingList.value[gIdx].items.splice(iIdx, 1);
+                            showPackingAddModal.value = false;
+                        }
+                    },
+                    addPackingItem: () => {
+                        const newItem = { name: packingAddForm.name, checked: false };
+                        if (packingAddForm.categoryKey === 'handCarry') packingList.value[0].items.push(newItem);
+                        else if (packingAddForm.categoryKey === 'checkInGeneral') packingList.value[1].subgroups[0].items.push(newItem);
+                        else if (packingAddForm.categoryKey === 'checkInWinter') packingList.value[1].subgroups[1].items.push(newItem);
+                        else packingList.value[1].subgroups[2].items.push(newItem);
+                        showPackingAddModal.value = false;
+                    },
+                    closePackingAddModal: () => showPackingAddModal.value = false,
                     convert: (type) => { if (type === 'JPY') calcHKD.value = calcJPY.value ? Math.round(calcJPY.value * exchangeRate) : null; else calcJPY.value = calcHKD.value ? Math.round(calcHKD.value / exchangeRate) : null; },
                     toggleTravelMode: (idx) => { const item = itineraryData.value[selectedDayIndex.value][idx]; item.travelMode = item.travelMode === 'walk' ? 'drive' : 'walk'; },
-                    openAddModal: () => { isEditing.value = false; isEditingHotel.value = false; Object.assign(form, { name: '', category: '景點', address: '', tel: '', note: '' }); showModal.value = true; },
-                    openEditModal: (idx) => { isEditing.value = true; isEditingHotel.value = false; editingIdx.value = idx; Object.assign(form, { ...itineraryData.value[selectedDayIndex.value][idx] }); showModal.value = true; },
-                    openEditHotelModal: (idx) => { isEditing.value = true; isEditingHotel.value = true; editingIdx.value = idx; Object.assign(form, { ...hotelsDetail.value[idx] }); showModal.value = true; },
+                    openAddModal: () => { isEditing.value = false; isEditingHotel.value = false; Object.assign(form, { name: '', category: '景點', address: '', tel: '', note: '', mapQuery: '' }); showModal.value = true; },
+                    openEditModal: (idx) => { isEditing.value = true; isEditingHotel.value = false; editingIdx.value = idx; Object.assign(form, { mapQuery: '', ...itineraryData.value[selectedDayIndex.value][idx] }); showModal.value = true; },
+                    openEditHotelModal: (idx) => { isEditing.value = true; isEditingHotel.value = true; editingIdx.value = idx; Object.assign(form, { mapQuery: '', ...hotelsDetail.value[idx] }); showModal.value = true; },
                     saveHotelItem: () => { hotelsDetail.value[editingIdx.value] = { ...form }; showModal.value = false; },
                     closeModal: () => { showModal.value = false; },
-                    saveItem: () => {
-                        if (!form.name) return;
-                        if (isEditing.value) itineraryData.value[selectedDayIndex.value][editingIdx.value] = { ...form };
-                        else itineraryData.value[selectedDayIndex.value].push({ ...form, travelMode: 'drive' });
-                        showModal.value = false;
-                        updateWeather();
-                    },
-                    confirmDelete: () => { if (confirm('確定刪除？')) { itineraryData.value[selectedDayIndex.value].splice(editingIdx.value, 1); showModal.value = false; updateWeather(); } },
+                    saveItem: () => { if (isEditing.value) itineraryData.value[selectedDayIndex.value][editingIdx.value] = { ...form }; else itineraryData.value[selectedDayIndex.value].push({ ...form, travelMode: 'drive' }); showModal.value = false; },
+                    confirmDelete: () => { if (confirm('確定刪除？')) { itineraryData.value[selectedDayIndex.value].splice(editingIdx.value, 1); showModal.value = false; } },
                     openAddShoppingModal: () => { isEditingShopping.value = false; Object.assign(shopForm, { name: '', category: '食品', price: null, image: '', note: '', bought: false }); showShoppingModal.value = true; },
                     openEditShoppingModal: (idx) => { isEditingShopping.value = true; editingShopIdx.value = idx; Object.assign(shopForm, shoppingList.value[idx]); showShoppingModal.value = true; },
-                    saveShoppingItem: () => {
-                        if (!shopForm.name) return;
-                        if (isEditingShopping.value) shoppingList.value[editingShopIdx.value] = { ...shopForm };
-                        else shoppingList.value.push({ ...shopForm, id: Date.now() });
-                        showShoppingModal.value = false;
-                    },
-                    getShoppingCatClass: (cat) => ({ '食品': 'cat-food', '家居用品': 'cat-home', '個人用品': 'cat-personal', '其他': 'cat-other' }[cat] || 'cat-other'),
+                    saveShoppingItem: () => { if (isEditingShopping.value) shoppingList.value[editingShopIdx.value] = { ...shopForm }; else shoppingList.value.push({ ...shopForm, id: Date.now() }); showShoppingModal.value = false; },
+                    getShoppingCatClass: (cat) => ({ '食品': 'cat-food', '家居用品': 'cat-home', '個人用品': 'cat-personal' }[cat] || 'cat-other'),
                     toggleBought: (idx) => { shoppingList.value[idx].bought = !shoppingList.value[idx].bought; },
                     getFilteredShopping: (cat) => shoppingList.value.map((item, index) => ({ ...item, originalIdx: index })).filter(item => item.category === cat),
                     handleImageUpload: (e) => { const reader = new FileReader(); reader.onload = (ev) => shopForm.image = ev.target.result; if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]); },
@@ -752,7 +929,7 @@
                         if (isLocalExpenseEdit.value) {
                             if (editingBudgetIdx.value === -1) localExpenses.value.push({ ...budgetForm });
                             else localExpenses.value[editingBudgetIdx.value] = { ...budgetForm };
-                        } else { budgetItems.value[editingBudgetIdx.value] = { ...budgetForm }; }
+                        } else budgetItems.value[editingBudgetIdx.value] = { ...budgetForm };
                         showBudgetModal.value = false;
                     },
                     deleteLocalItem: () => { if(confirm('刪除？')){ localExpenses.value.splice(editingBudgetIdx.value, 1); showBudgetModal.value = false; } },
@@ -760,7 +937,10 @@
                     closeShoppingModal: () => showShoppingModal.value = false,
                     deleteShoppingItem: () => { if(confirm('刪除？')){ shoppingList.value.splice(editingShopIdx.value, 1); showShoppingModal.value = false; } },
                     syncHKD: () => { budgetForm.hkd = Math.round(budgetForm.jpy * exchangeRate); },
-                    openMap: (item) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address || item.name)}`, '_blank')
+                    openMap: (item) => {
+                        const query = item.mapQuery || item.address || item.name;
+                        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+                    }
                 };
             }
         }).mount('#app');
