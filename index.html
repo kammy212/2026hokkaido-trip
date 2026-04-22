@@ -55,7 +55,8 @@
         .drag-handle:active { cursor: grabbing; background: #E6E6FA; }
         .card-content { flex: 1; padding: 16px; position: relative; cursor: pointer; }
         .card-content:active { transform: scale(0.99); }
-        .weather-panel { background: #7B6F93; color: #FFFAFA; border-radius: 25px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+        .weather-panel { background: #7B6F93; color: #FFFAFA; border-radius: 25px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: opacity 0.2s; }
+        .weather-panel:active { opacity: 0.8; }
         .transport-connector { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
         .transport-icon-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #E6E6FA; color: #7B6F93; font-size: 13px; box-shadow: 0 4px 10px rgba(123, 111, 147, 0.10); cursor: pointer; }
         .item-action-btn { position: absolute; font-size: 14px; color: #E2E8F0; cursor: pointer; z-index: 10; padding: 5px; transition: color 0.2s; }
@@ -309,8 +310,8 @@
                     </p>
                     <i class="fa-solid fa-heart text-[#967BB6] text-xs"></i>
                 </div>
-                <!-- WEATHER PANEL -->
-                <div class="weather-panel">
+                <!-- WEATHER PANEL - NOW WITH CLICK ACTION -->
+                <div class="weather-panel" @click="updateWeather" title="點擊重新獲取定位">
                     <div class="flex items-center gap-4">
                         <i :class="getWeatherIcon" class="text-4xl"></i>
                         <div>
@@ -613,12 +614,12 @@
                     }
                 };
 
-                // --- 實時天氣邏輯 ---
+                // --- 實時天氣與定位 ---
                 const weather = reactive({ 
                     temp: '--', 
                     feel: '--', 
                     humidity: '--', 
-                    location: '定位中...', 
+                    location: '正在獲取...', 
                     isLive: false,
                     iconCode: ''
                 });
@@ -626,6 +627,7 @@
                 const API_KEY = "84cf44e4751460bc60a30aca09a10562";
 
                 const updateWeather = async () => {
+                    weather.location = "定位中..."; // UI 反饋
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(async (position) => {
                             const { latitude, longitude } = position.coords;
@@ -642,7 +644,10 @@
                             } catch (e) {
                                 fallbackWeather();
                             }
-                        }, fallbackWeather);
+                        }, () => {
+                            alert("無法取得您的當前位置，已切換至預設天氣。");
+                            fallbackWeather();
+                        }, { timeout: 8000 });
                     } else {
                         fallbackWeather();
                     }
@@ -866,6 +871,7 @@
                     showBudgetModal, budgetForm, budgetModalTitle, isLocalExpenseEdit,
                     currentItinerary, packingList,
                     showPackingAddModal, isEditingPacking, packingAddForm,
+                    updateWeather, // 已導出給 HTML 點擊事件使用
                     togglePacking: (gIdx, iIdx, sIdx = null) => {
                         if (sIdx !== null) packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked = !packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked;
                         else packingList.value[gIdx].items[iIdx].checked = !packingList.value[gIdx].items[iIdx].checked;
