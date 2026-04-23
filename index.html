@@ -55,8 +55,7 @@
         .drag-handle:active { cursor: grabbing; background: #E6E6FA; }
         .card-content { flex: 1; padding: 16px; position: relative; cursor: pointer; }
         .card-content:active { transform: scale(0.99); }
-        .weather-panel { background: #7B6F93; color: #FFFAFA; border-radius: 25px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: opacity 0.2s; }
-        .weather-panel:active { opacity: 0.8; }
+        .weather-panel { background: #7B6F93; color: #FFFAFA; border-radius: 25px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
         .transport-connector { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
         .transport-icon-btn { width: 30px; height: 30px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #E6E6FA; color: #7B6F93; font-size: 13px; box-shadow: 0 4px 10px rgba(123, 111, 147, 0.10); cursor: pointer; }
         .item-action-btn { position: absolute; font-size: 14px; color: #E2E8F0; cursor: pointer; z-index: 10; padding: 5px; transition: color 0.2s; }
@@ -310,8 +309,8 @@
                     </p>
                     <i class="fa-solid fa-heart text-[#967BB6] text-xs"></i>
                 </div>
-                <!-- WEATHER PANEL - NOW WITH CLICK ACTION -->
-                <div class="weather-panel" @click="updateWeather" title="點擊重新獲取定位">
+                <!-- WEATHER PANEL -->
+                <div class="weather-panel">
                     <div class="flex items-center gap-4">
                         <i :class="getWeatherIcon" class="text-4xl"></i>
                         <div>
@@ -568,7 +567,7 @@
                                     <td colspan="5" class="text-center py-8 text-slate-300 italic">無相關記錄</td>
                                 </tr>
                                 <tr v-for="(item, index) in filteredLocalExpenses" :key="'local-'+index" @click="openEditLocalModal(item.originalIdx)">
-                                    <td><span :class="['payer-badge', getPayerClass(item.payer)]">{{ item.payer }}</span></td>
+                                    <td><span :class="['badge', getPayerClass(item.payer)]" class="payer-badge">{{ item.payer }}</span></td>
                                     <td class="font-bold">{{ item.name }}</td>
                                     <td class="val-jpy">{{ item.jpy ? '¥'+item.jpy.toLocaleString() : '-' }}</td>
                                     <td class="val-hkd">${{ (item.hkd || 0).toLocaleString() }}</td>
@@ -580,8 +579,9 @@
                             </tbody>
                             <tfoot v-if="filteredLocalExpenses.length > 0">
                                 <tr class="total-row">
-                                    <td colspan="3" class="text-right p-3 font-black text-slate-500 uppercase tracking-widest">{{ selectedPayerFilter }} 總計 </td>
-                                    <td colspan="2" class="p-3 font-black text-royal-purple text-xs">${{ filteredTotalLocalHKD.toLocaleString() }}</td>
+                                    <td colspan="2" class="text-right p-3 font-black text-slate-500 uppercase tracking-widest text-[9px]">{{ selectedPayerFilter }} 總計</td>
+                                    <td class="p-3 font-black text-royal-purple text-[10px] val-jpy">¥{{ filteredTotalLocalJPY.toLocaleString() }}</td>
+                                    <td colspan="2" class="p-3 font-black text-royal-purple text-[10px] val-hkd">${{ filteredTotalLocalHKD.toLocaleString() }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -591,7 +591,7 @@
         </main>
     </div>
     <script>
-        const { createApp, ref, computed, reactive, onMounted, watch } = Vue;
+        const { createApp, ref, computed, reactive, onMounted, watch, nextTick } = Vue;
         createApp({
             setup() {
                 const currentTab = ref('itinerary');
@@ -613,21 +613,17 @@
                         countdown.secs = Math.floor((diff % (1000 * 60)) / 1000);
                     }
                 };
-
-                // --- 實時天氣與定位 ---
+                // --- 實時天氣邏輯 ---
                 const weather = reactive({ 
                     temp: '--', 
                     feel: '--', 
                     humidity: '--', 
-                    location: '正在獲取...', 
+                    location: '定位中...', 
                     isLive: false,
                     iconCode: ''
                 });
-
                 const API_KEY = "84cf44e4751460bc60a30aca09a10562";
-
                 const updateWeather = async () => {
-                    weather.location = "定位中..."; // UI 反饋
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(async (position) => {
                             const { latitude, longitude } = position.coords;
@@ -644,15 +640,11 @@
                             } catch (e) {
                                 fallbackWeather();
                             }
-                        }, () => {
-                            alert("無法取得您的當前位置，已切換至預設天氣。");
-                            fallbackWeather();
-                        }, { timeout: 8000 });
+                        }, fallbackWeather);
                     } else {
                         fallbackWeather();
                     }
                 };
-
                 const fallbackWeather = () => {
                     const baseTemps = [16, 18, 14, 19, 17, 18, 16, 17];
                     weather.temp = baseTemps[selectedDayIndex.value] || 18;
@@ -661,20 +653,44 @@
                     weather.location = '札幌 (預設)';
                     weather.isLive = false;
                 };
-
                 const getWeatherIcon = computed(() => {
                     if (weather.iconCode === 'Clear' || weather.temp > 25) return 'fa-solid fa-sun text-yellow-400';
                     if (weather.iconCode === 'Rain') return 'fa-solid fa-cloud-showers-heavy text-blue-300';
                     if (weather.iconCode === 'Snow') return 'fa-solid fa-snowflake text-white';
                     return 'fa-solid fa-cloud-sun text-cream-white';
                 });
-
+                
+                // --- 拖拽排序優化 ---
+                let sortableInstance = null;
+                const initSortable = () => {
+                    if (sortableInstance) sortableInstance.destroy();
+                    const el = document.getElementById('itinerary-list');
+                    if (!el) return;
+                    
+                    sortableInstance = new Sortable(el, {
+                        animation: 150,
+                        handle: '.drag-handle',
+                        filter: '.ignore-drag',
+                        ghostClass: 'sortable-ghost',
+                        onEnd: (evt) => {
+                            const list = itineraryData.value[selectedDayIndex.value];
+                            const movedItem = list.splice(evt.oldIndex, 1)[0];
+                            list.splice(evt.newIndex, 0, movedItem);
+                        }
+                    });
+                };
                 onMounted(() => {
                     updateWeather();
                     updateCountdown();
                     setInterval(updateCountdown, 1000);
+                    initSortable();
                 });
-
+                watch([currentTab, selectedDayIndex], async () => {
+                    if (currentTab.value === 'itinerary') {
+                        await nextTick();
+                        initSortable();
+                    }
+                });
                 // --- 資料管理與 UI 邏輯 ---
                 const selectedPayerFilter = ref('全部');
                 const showModal = ref(false);
@@ -694,19 +710,16 @@
                 const showPackingAddModal = ref(false);
                 const isEditingPacking = ref(false);
                 const packingAddForm = reactive({ name: '', categoryKey: 'handCarry', gIdx: -1, iIdx: -1, sIdx: null });
-
                 const days = [
                     { id: 1, week: 'Tue', date: '16/6' }, { id: 2, week: 'Wed', date: '17/6' },
                     { id: 3, week: 'Thu', date: '18/6' }, { id: 4, week: 'Fri', date: '19/6' },
                     { id: 5, week: 'Sat', date: '20/6' }, { id: 6, week: 'Sun', date: '21/6' },
                     { id: 7, week: 'Mon', date: '22/6' }, { id: 8, week: 'Tue', date: '23/6' }
                 ];
-
                 const loadData = (key, defaultVal) => {
                     const saved = localStorage.getItem(key);
                     return saved ? JSON.parse(saved) : defaultVal;
                 };
-
                 const itineraryData = ref(loadData('hokkaido_itinerary', [
                     [ 
                         { type: 'boarding-pass', airline: 'Greater Bay Airlines', flightNum: 'HB880', originCode: 'HKG', destCode: 'CTS', dateStr: '16 JUN 2026', startTime: '09:05', arrivalTime: '15:05', duration: '5小時' },
@@ -742,7 +755,7 @@
                         { name: '札幌護國神社', category: '景點', tel: '+81115115421', travelMode: 'drive' },
                         { name: '洞爺水之站', category: '景點', tel: '+81142825277', travelMode: 'drive' },
                         { name: '浮見堂', category: '景點', address: '北海道禮田郡洞爺湖町洞爺町', travelMode: 'drive' },
-                        { name: '湖景飯店 洞爺乃之風', category: '住宿', tel: '+81570026571', address: '北海道虻田郡洞爺湖町洞爺湖溫泉29-1' }
+                        { name: '湖景飯店 洞爺乃之風', category: '住宿', tel: '+81570026571', address: '北海道變田郡洞爺湖町洞爺湖溫泉29-1' }
                     ],
                     [ 
                         { name: '湖景飯店 洞爺乃之風', category: '住宿', travelMode: 'drive' },
@@ -769,7 +782,7 @@
                     { id: 1, name: "帶廣多美迎酒店", stay: "Day 1", address: "北海道帶廣市西2條南9丁目11-1", tel: "+81155215489", amenities: "♨️ 溫泉、🧺 洗衣機、🍜 宵夜拉麵", mapQuery: '' },
                     { id: 2, name: "星野 Tomamu", stay: "Day 2-3", address: "北海道勇拂郡占冠村中Tomamu", tel: "+81167581111", amenities: "♨️ 木林之湯、☁️ 雲海平台、🌊 微笑海灘", mapQuery: '' },
                     { id: 3, name: "Susukino Susukino Susukino", stay: "Day 4", address: "北海道札幌市中央區南6條西6丁目2-2", tel: "+81115332100", amenities: "🧺 洗衣機、中心位置便利", mapQuery: '' },
-                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道虻田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房", mapQuery: '' },
+                    { id: 4, name: "洞爺乃之風", stay: "Day 5", address: "北海道變田郡洞爺湖町洞爺湖溫泉29-1", tel: "+81570026571", amenities: "♨️ 天空露天風呂、全湖景客房", mapQuery: '' },
                     { id: 5, name: "Dormy Inn Tomakomai", stay: "Day 6", address: "北海道苫小牧市錦町2丁目1-22", tel: "+81144325489", amenities: "♨️ 天然溫泉、🧺 洗衣機、🍜 免費拉麵", mapQuery: '' },
                     { id: 6, name: "支笏湖鶴雅 水之謌", stay: "Day 7", address: "北海道千歲市支笏湖溫泉", tel: "+81123252211", amenities: "♨️ 頂級 Spa", mapQuery: '' }
                 ]));
@@ -844,7 +857,6 @@
                         ]
                     }
                 ]));
-
                 watch([itineraryData, hotelsDetail, shoppingList, budgetItems, localExpenses, packingList], () => {
                     localStorage.setItem('hokkaido_itinerary', JSON.stringify(itineraryData.value));
                     localStorage.setItem('hokkaido_hotels', JSON.stringify(hotelsDetail.value));
@@ -865,13 +877,20 @@
                 return {
                     currentTab, selectedDayIndex, days, itineraryData, hotelsDetail, weather, getWeatherIcon,
                     countdown, calcJPY, calcHKD, exchangeRate, budgetItems, totalHKD, averageHKD: computed(() => (totalHKD.value / 2).toFixed(1)),
-                    localExpenses, filteredLocalExpenses, filteredTotalLocalHKD: computed(() => filteredLocalExpenses.value.reduce((sum, item) => sum + (Number(item.hkd) || 0), 0)),
+                    localExpenses, filteredLocalExpenses, 
+                    filteredTotalLocalJPY: computed(() => {
+                        const sum = filteredLocalExpenses.value.reduce((s, item) => s + (Number(item.jpy) || 0), 0);
+                        return selectedPayerFilter.value.includes('共同') ? sum / 2 : sum;
+                    }),
+                    filteredTotalLocalHKD: computed(() => {
+                        const sum = filteredLocalExpenses.value.reduce((s, item) => s + (Number(item.hkd) || 0), 0);
+                        return selectedPayerFilter.value.includes('共同') ? sum / 2 : sum;
+                    }),
                     selectedPayerFilter, showModal, isEditing, isEditingHotel, form,
                     showShoppingModal, isEditingShopping, shopForm, shoppingList,
                     showBudgetModal, budgetForm, budgetModalTitle, isLocalExpenseEdit,
                     currentItinerary, packingList,
                     showPackingAddModal, isEditingPacking, packingAddForm,
-                    updateWeather, // 已導出給 HTML 點擊事件使用
                     togglePacking: (gIdx, iIdx, sIdx = null) => {
                         if (sIdx !== null) packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked = !packingList.value[gIdx].subgroups[sIdx].items[iIdx].checked;
                         else packingList.value[gIdx].items[iIdx].checked = !packingList.value[gIdx].items[iIdx].checked;
